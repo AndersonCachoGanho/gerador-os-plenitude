@@ -1,3 +1,4 @@
+
 import streamlit as st
 from src.processador import GeradorOS
 import os
@@ -44,7 +45,8 @@ if st.button("🚀 GERAR ORDEM DE SERVIÇO", use_container_width=True):
             v_path = None
             
             # Criar pastas se não existirem
-            if not os.path.exists("uploads"): os.makedirs("uploads")
+            if not os.path.exists("uploads"): 
+                os.makedirs("uploads")
             
             if upload_prod:
                 p_path = f"uploads/temp_prod_{upload_prod.name}"
@@ -56,25 +58,30 @@ if st.button("🚀 GERAR ORDEM DE SERVIÇO", use_container_width=True):
                 with open(v_path, "wb") as f:
                     f.write(upload_veto.getbuffer())
 
-            # Chamar o processador reconstruído
+            # Chamar o processador - Ajustado para o caminho correto
             layout = "assets/layout_base.png"
+            
             if os.path.exists(layout):
                 gerador = GeradorOS(layout)
-                nome_pdf = f"OS_{dados['cliente']}_{dados['produto']}".replace(" ", "_")
+                # Removemos espaços e caracteres especiais do nome do arquivo
+                nome_pdf = f"OS_{dados['cliente']}_{dados['produto']}".replace(" ", "_").replace("/", "-")
                 pdf_gerado = gerador.gerar_os(dados, p_path, v_path, nome_pdf)
                 
-                st.success(f"✅ O.S. Gerada com Sucesso! Arquivo: {pdf_gerado}")
-                
-                # Botão para baixar o PDF direto pelo navegador
-                with open(pdf_gerado, "rb") as pdf_file:
-                    st.download_button(
-                        label="📥 Baixar PDF Agora",
-                        data=pdf_file,
-                        file_name=f"{nome_pdf}.pdf",
-                        mime="application/pdf"
-                    )
+                if os.path.exists(pdf_gerado):
+                    st.success(f"✅ O.S. Gerada com Sucesso!")
+                    
+                    # Botão para baixar o PDF direto pelo navegador
+                    with open(pdf_gerado, "rb") as pdf_file:
+                        st.download_button(
+                            label="📥 Baixar PDF Agora",
+                            data=pdf_file,
+                            file_name=f"{nome_pdf}.pdf",
+                            mime="application/pdf"
+                        )
+                else:
+                    st.error("Erro interno ao gerar o arquivo PDF.")
             else:
-                st.error("Erro: Layout base não encontrado em 'assets/layout_base.png'")
+                st.error(f"Erro: Layout base não encontrado em '{layout}'. Verifique se a pasta 'assets' existe no GitHub.")
         
         except Exception as e:
-            st.error(f"Ocorreu um erro: {e}")
+            st.error(f"Ocorreu um erro no processamento: {e}")
