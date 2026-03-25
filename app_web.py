@@ -1,5 +1,5 @@
 import streamlit as st
-from processador import GeradorOS
+from src.processador import GeradorOS
 import os
 from PIL import Image
 
