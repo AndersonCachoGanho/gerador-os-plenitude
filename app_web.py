@@ -2,11 +2,12 @@ import streamlit as st
 import fitz  # PyMuPDF
 import os
 
-# --- CLASSE DO PROCESSADOR (Integrada para evitar erro de importação) ---
+# --- O PROCESSADOR AGORA MORA AQUI DENTRO (SEM IMPORTAÇÃO) ---
 class GeradorOS:
     def __init__(self, layout_pdf_path):
         self.layout_path = layout_pdf_path
         # Coordenadas em Pontos PDF (A4: 595 x 842)
+        # Ajuste esses números se o texto sair desalinhado
         self.x_col_esq = 60
         self.x_col_dir = 320
         self.y_linhas = [85, 110, 135, 160] 
@@ -19,25 +20,27 @@ class GeradorOS:
             doc = fitz.open(self.layout_path)
             page = doc[0]
 
-            # Fontes Nativas (Não precisam de arquivos .ttf)
+            # Fontes Nativas do PDF (Elimina o erro "need font file")
             f_bold, f_reg = "helv-bold", "helv"
             
-            # Dados Esquerda
+            # Dados da Esquerda
             itens_esq = [("CLIENTE:", 'cliente'), ("VENDEDOR:", 'vendedor'), ("PRODUTO:", 'produto'), ("QTD:", 'quantidade')]
             for i, (label, key) in enumerate(itens_esq):
                 page.insert_text((self.x_col_esq, self.y_linhas[i]), label, fontsize=10, fontname=f_bold)
                 page.insert_text((self.x_col_esq + 65, self.y_linhas[i]), str(dados.get(key, '')).upper(), fontsize=10, fontname=f_reg)
 
-            # Dados Direita
+            # Dados da Direita
             itens_dir = [("COR:", 'cor'), ("GRAVAÇÃO:", 'gravacao'), ("PANTONE:", 'pantone')]
             for i, (label, key) in enumerate(itens_dir):
                 page.insert_text((self.x_col_dir, self.y_linhas[i]), label, fontsize=10, fontname=f_bold)
                 page.insert_text((self.x_col_dir + 80, self.y_linhas[i]), str(dados.get(key, '')).upper(), fontsize=10, fontname=f_reg)
 
-            # Inserir Artes
+            # Inserir Foto do Produto
             if file_produto:
+                # Rect(x0, y0, x1, y1)
                 page.insert_image(fitz.Rect(50, 220, 250, 450), stream=file_produto.read())
 
+            # Inserir Logo (Vetor ou Imagem)
             if file_vetor:
                 rect_logo = fitz.Rect(320, 220, 545, 450)
                 if file_vetor.name.lower().endswith('.pdf'):
@@ -47,7 +50,9 @@ class GeradorOS:
                     file_vetor.seek(0)
                     page.insert_image(rect_logo, stream=file_vetor.read())
 
+            # Criar pasta de saída se não existir
             if not os.path.exists("saida"): os.makedirs("saida")
+            
             output_path = os.path.join("saida", f"{nome_arquivo}.pdf")
             doc.save(output_path, garbage=4, deflate=True, clean=True)
             doc.close()
@@ -56,13 +61,14 @@ class GeradorOS:
             st.error(f"Erro no Processador: {e}")
             return None
 
-# --- INTERFACE STREAMLIT ---
+# --- INTERFACE DO USUÁRIO ---
 st.set_page_config(page_title="Plenitude Brindes - Gerador", layout="wide")
 st.title("Gerador de O.S. - Plenitude Brindes")
 
 col_dados, col_files = st.columns([1, 1])
 
 with col_dados:
+    st.subheader("Informações da O.S.")
     dados = {
         'cliente': st.text_input("Cliente:"),
         'vendedor': st.text_input("Vendedor:"),
@@ -74,6 +80,7 @@ with col_dados:
     }
 
 with col_files:
+    st.subheader("Anexos")
     upload_prod = st.file_uploader("Foto Produto", type=['png', 'jpg', 'jpeg'])
     upload_veto = st.file_uploader("Logo (PDF Vetor/Imagem)", type=['pdf', 'png', 'jpg'])
 
@@ -83,12 +90,14 @@ if st.button("🚀 GERAR ORDEM DE SERVIÇO", use_container_width=True):
     else:
         layout = "assets/layout_base.pdf"
         if os.path.exists(layout):
+            # Instancia a classe que agora está aqui mesmo no arquivo
             gerador = GeradorOS(layout)
             nome_base = f"OS_{dados['cliente']}_{dados['produto']}".replace(" ", "_")
             pdf_path = gerador.gerar_os(dados, upload_prod, upload_veto, nome_base)
             
             if pdf_path:
+                st.success("PDF Gerado com Sucesso!")
                 with open(pdf_path, "rb") as f:
                     st.download_button("📥 Baixar O.S. Vetorial", f, f"{nome_base}.pdf", "application/pdf")
         else:
-            st.error("Layout não encontrado em assets/layout_base.pdf")
+            st.error(f"Erro: Arquivo {layout} não encontrado na pasta assets.")
